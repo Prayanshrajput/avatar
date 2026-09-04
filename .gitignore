@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated avatar assets
+/storage/
+
+# local backups
+.env.bak
