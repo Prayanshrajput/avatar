@@ -4,10 +4,12 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, useAnimations, useGLTF } from "@react-three/drei";
 import { SkeletonUtils } from "three/examples/jsm/Addons.js";
+import { MeshoptDecoder } from "meshoptimizer";
 import {
   Box3,
   LoopOnce,
   LoopRepeat,
+  TOUCH,
   Vector3,
   type Group,
   type Material,
@@ -26,8 +28,12 @@ export interface Take {
   effect?: "disappear";
 }
 
-/** Every avatar is fitted inside a box this big, so the camera can stay fixed. */
-const TARGET_SIZE = 1.8;
+/**
+ * Every avatar is fitted inside a box this big, so the camera can stay fixed.
+ * Kept a little under the camera's framing so a tall model still has headroom on a
+ * narrow phone viewport, where the vertical FOV leaves less slack.
+ */
+const TARGET_SIZE = 1.35;
 /** Where the fitted model's centre sits, and what OrbitControls looks at. */
 const FOCUS_Y = TARGET_SIZE / 2;
 
@@ -86,7 +92,11 @@ function Take({
   effect?: "disappear";
   replayKey: number;
 }) {
-  const { scene, animations } = useGLTF(url);
+  // Meshes are requested from Tripo with meshopt compression, so the loader needs
+  // the matching decoder or the GLB fails to parse.
+  const { scene, animations } = useGLTF(url, undefined, undefined, (loader) => {
+    loader.setMeshoptDecoder(MeshoptDecoder);
+  });
 
   // Skinned meshes must be cloned with SkeletonUtils; a plain clone shares bones.
   const model = useMemo(() => SkeletonUtils.clone(scene) as Group, [scene]);
@@ -203,7 +213,19 @@ export function AvatarViewer({
 }) {
   const [index, setIndex] = useState(0);
   const [replayKey, setReplayKey] = useState(0);
+  const [glFailed, setGlFailed] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const active = takes[Math.min(index, takes.length - 1)];
+
+  // Decided after mount: the server has no viewport, and guessing wrong would
+  // either waste a phone's GPU budget or needlessly downgrade a desktop.
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 820px), (pointer: coarse)");
+    setIsMobile(query.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   // Warm the cache so switching takes is instant.
   useEffect(() => {
@@ -223,10 +245,47 @@ export function AvatarViewer({
   return (
     <div className="flex flex-col gap-3">
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-black/10 bg-gradient-to-b from-zinc-100 to-zinc-200 dark:border-white/10 dark:from-zinc-800 dark:to-zinc-900">
+        {glFailed ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">{glFailed}</p>
+            <a
+              href={active.url}
+              download
+              className="rounded-full border border-black/10 px-3.5 py-1.5 text-sm font-medium dark:border-white/15"
+            >
+              Download the GLB instead
+            </a>
+          </div>
+        ) : (
         <Canvas
-          shadows
+          // Shadow maps plus MSAA at devicePixelRatio 3 is enough to exhaust a phone
+          // GPU's memory and fail context creation outright — which renders as a
+          // silently blank box. Mobile gets a cheaper pipeline.
+          shadows={!isMobile}
+          dpr={[1, isMobile ? 1.5 : 2]}
           camera={{ position: [0, 1.1, 4.2], fov: 32 }}
-          gl={{ alpha: true, antialias: true }}
+          gl={{
+            alpha: true,
+            antialias: !isMobile,
+            powerPreference: "default",
+            // Lets us paint a message instead of a blank canvas if the GPU gives up.
+            failIfMajorPerformanceCaveat: false,
+          }}
+          onCreated={({ gl }) => {
+            gl.domElement.addEventListener(
+              "webglcontextlost",
+              (event) => {
+                event.preventDefault();
+                setGlFailed("The 3D view ran out of graphics memory on this device.");
+              },
+              { passive: false }
+            );
+          }}
+          fallback={
+            <div className="flex h-full items-center justify-center p-6 text-center text-sm text-zinc-500">
+              This device could not start the 3D view.
+            </div>
+          }
         >
           <Lighting />
           <Suspense fallback={null}>
@@ -246,8 +305,15 @@ export function AvatarViewer({
             target={[0, FOCUS_Y, 0]}
             minDistance={1.5}
             maxDistance={12}
+            // On a phone, one finger must still scroll the page — otherwise the
+            // canvas traps the gesture and the page feels stuck. Two fingers orbit.
+            touches={{
+              ONE: isMobile ? undefined : TOUCH.ROTATE,
+              TWO: TOUCH.DOLLY_ROTATE,
+            }}
           />
         </Canvas>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -274,7 +340,8 @@ export function AvatarViewer({
         </a>
       </div>
       <p className="text-xs text-zinc-500">
-        Drag to orbit · scroll to zoom{active.loop === false && " · tap again to replay"}
+        {isMobile ? "Two fingers to orbit and zoom" : "Drag to orbit · scroll to zoom"}
+        {active.loop === false && " · tap again to replay"}
       </p>
 
       {children}

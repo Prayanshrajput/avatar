@@ -27,6 +27,16 @@ export const config = {
   rigModelVersion: process.env.TRIPO_RIG_VERSION ?? "v1.0-20240301",
   meshModelVersion: process.env.TRIPO_MESH_VERSION ?? "v3.1-20260211",
 
+  /**
+   * Triangle budget for the generated mesh.
+   *
+   * Without this Tripo returns its maximum-detail mesh — 1.4M triangles and ~50MB
+   * per GLB, which desktop survives and mobile GPUs do not. A stylised avatar reads
+   * identically at 30k, and every retargeted animation carries the geometry again,
+   * so this multiplies across the whole job.
+   */
+  faceLimit: Number(process.env.TRIPO_FACE_LIMIT ?? 30000),
+
   /** Motions generated up front. Everything else is added on demand from the viewer. */
   animations: (process.env.ANIMATIONS ?? "preset:biped:idle,preset:biped:walk")
     .split(",")

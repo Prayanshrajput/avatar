@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
-# Deploy this app to Embarko (https://hostnsoft.com/doc).
+# Deploy this app to Embarko (https://embarko.ai/doc).
+#
+# Embarko is mid-rebrand from HostNSoft. The two halves live on different
+# domains, and mixing them up sends your Bearer token to a dead host:
+#   ship endpoint    -> ship.embarko.ai   (hostnsoft.com's ship host 404s)
+#   token dashboard  -> hostnsoft.com     (still where hns_ tokens are issued)
+#   deployed app URL -> *.app.hostnsoft.com
 #
 # Usage:
 #   export DEPLOY_TOKEN="hns_..."      # from https://hostnsoft.com/app/tokens
@@ -15,7 +21,7 @@
 set -euo pipefail
 
 APP_NAME="${APP_NAME:-avataar}"
-DEPLOY_HOST="${DEPLOY_HOST:-https://ship.hostnsoft.com}"
+DEPLOY_HOST="${DEPLOY_HOST:-https://ship.embarko.ai}"
 ENDPOINT="$DEPLOY_HOST/apps"
 
 ASSUME_YES=0
@@ -129,7 +135,7 @@ case "$CODE" in
   app_name_check_failed) echo "-> Transient upstream check failure. Safe to retry." >&2 ;;
   invalid_app_version)   echo "-> X-App-Version must match ^[a-zA-Z0-9._-]+\$ (got '$VERSION')." >&2 ;;
   missing_source_file)   echo "-> The multipart upload carried no source file (packaging bug)." >&2 ;;
-  unsupported_storage_pattern) echo "-> App calls window.storage, unavailable on Embarko. Use better-sqlite3 or PGlite under \$DATA_DIR. See https://hostnsoft.com/docs#storage-requirements" >&2 ;;
+  unsupported_storage_pattern) echo "-> App calls window.storage, unavailable on Embarko. Use better-sqlite3 or PGlite under \$DATA_DIR. See https://embarko.ai/doc#storage-requirements" >&2 ;;
   deploy_failed)    echo "-> Build/deploy step failed server-side; read 'details' above." >&2 ;;
   "") [[ "$HTTP_CODE" == 404 ]] && echo "-> 404 with no error code: the deploy API is not responding at $ENDPOINT (docs specify 401 for an unauthenticated POST). Endpoint may be down or moved -- check the dashboard." >&2 ;;
 esac

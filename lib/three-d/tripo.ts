@@ -122,6 +122,10 @@ export const tripoProvider: ThreeDProvider = {
       model_version: config.meshModelVersion,
       texture: true,
       pbr: true,
+      // Keeps the mesh (and every animation GLB derived from it) loadable on a phone.
+      face_limit: config.faceLimit,
+      // Meshopt compression shrinks the GLB substantially at no visual cost.
+      compress: "geometry",
       // The character sheet is authoritative for silhouette; keep the mesh aligned to it.
       texture_alignment: "original_image",
       orientation: "align_image",
