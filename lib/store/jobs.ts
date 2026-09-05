@@ -3,6 +3,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { config } from "@/lib/config";
 import { ensureJobDir, jobDir } from "@/lib/store/files";
+import { flush, pushAsset } from "@/lib/store/remote";
 import { STEP_LABELS, type JobEvent, type JobInput, type JobRecord, type Step } from "@/lib/types";
 
 /**
@@ -51,6 +52,10 @@ export async function saveJob(job: JobRecord): Promise<JobRecord> {
   const dir = await ensureJobDir(job.id);
   job.updatedAt = new Date().toISOString();
   await fs.writeFile(path.join(dir, JOB_FILE), JSON.stringify(job, null, 2));
+  pushAsset(path.join(job.id, JOB_FILE));
+  // A finished job has no further writes to ride along with, so commit the
+  // debounced batch now rather than risk losing it to a restart.
+  if (job.status === "done" || job.status === "error") void flush();
   emit(job.id, { type: "update", job });
   return job;
 }

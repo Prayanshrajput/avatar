@@ -42,6 +42,7 @@ next-env.d.ts
 
 # generated avatar assets
 /storage/
+/assets/
 
 # local backups
 .env.bak

@@ -1,3 +1,14 @@
+---
+title: Avatar Generator
+emoji: 🧍
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+short_description: Prompt or photo to a rigged, animated 3D avatar
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

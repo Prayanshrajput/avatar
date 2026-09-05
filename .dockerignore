@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+
+# Generated avatars: the image ships empty and restores from the dataset mirror.
+storage
+assets
+
+# Never let live API keys into a layer.
+.env
+.env.*
+!.env.local.example
+
+.DS_Store
+*.tsbuildinfo
+npm-debug.log*

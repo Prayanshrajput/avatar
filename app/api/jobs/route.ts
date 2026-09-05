@@ -3,6 +3,7 @@ import path from "node:path";
 import { startJob } from "@/lib/graph/runner";
 import { ensureJobDir, jobDir } from "@/lib/store/files";
 import { createJob, listJobs, newJobId } from "@/lib/store/jobs";
+import { pushAsset } from "@/lib/store/remote";
 import type { JobInput } from "@/lib/types";
 import fs from "node:fs/promises";
 
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
     const ext = file.type === "image/png" ? ".png" : file.type === "image/webp" ? ".webp" : ".jpg";
     const imagePath = path.join(jobDir(jobId), `source${ext}`);
     await fs.writeFile(imagePath, Buffer.from(await file.arrayBuffer()));
+    // The source image is part of the job's record, so mirror it too.
+    pushAsset(path.join(jobId, `source${ext}`));
     input = { kind: "image", imagePath, prompt: prompt || undefined };
   } else if (prompt) {
     input = { kind: "prompt", prompt };

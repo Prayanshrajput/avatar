@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "@/lib/config";
+import { archiveRaw } from "@/lib/glb/ingest";
+import { pushAsset } from "@/lib/store/remote";
 
 export function jobDir(jobId: string): string {
   return path.join(config.storageDir, jobId);
@@ -20,6 +22,8 @@ export async function writeAsset(
 ): Promise<string> {
   const dir = await ensureJobDir(jobId);
   await fs.writeFile(path.join(dir, filename), data);
+  // Queue the durable copy; the upload runs off the caller's critical path.
+  pushAsset(path.join(jobId, filename));
   return assetUrl(jobId, filename);
 }
 
@@ -39,6 +43,14 @@ export async function downloadAsset(
     throw new Error(`Failed to download ${filename}: ${res.status} ${res.statusText}`);
   }
   const buf = Buffer.from(await res.arrayBuffer());
+
+  // Archive the vendor bytes before anything else can touch them. The optimizer
+  // rebuilds from assets/raw/, so this copy is what makes the build re-runnable
+  // even after storage/ has been optimized or cleared.
+  if (filename.endsWith(".glb")) {
+    await archiveRaw(jobId, filename, buf);
+  }
+
   return writeAsset(jobId, filename, buf);
 }
 
@@ -50,12 +62,4 @@ export function resolveAssetPath(segments: string[]): string | null {
   return target;
 }
 
-export const CONTENT_TYPES: Record<string, string> = {
-  ".glb": "model/gltf-binary",
-  ".gltf": "model/gltf+json",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".json": "application/json",
-};
+export { CONTENT_TYPES } from "@/lib/store/content-types";

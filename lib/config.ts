@@ -45,6 +45,39 @@ export const config = {
 
   storageDir: process.env.STORAGE_DIR ?? path.join(process.cwd(), "storage"),
 
+  /**
+   * Durable mirror for ./storage, as a Supabase Storage bucket.
+   *
+   * A container's disk is wiped on every restart, so without this every generated
+   * avatar is lost on redeploy. Both the URL and the key must be set for the
+   * mirror to run at all — see lib/store/remote.ts.
+   *
+   * The service role key, not the anon key: this runs server-side only and has to
+   * write to a private bucket without a user session. It must never reach the
+   * browser, which is why it has no NEXT_PUBLIC_ prefix.
+   */
+  supabaseUrl: process.env.SUPABASE_URL ?? "",
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+  supabaseBucket: process.env.SUPABASE_BUCKET ?? "avatars",
+
+  /**
+   * Root of the two-tier asset archive: `raw/` holds untouched vendor downloads,
+   * `optimized/` holds the merged browser build. See lib/glb/paths.ts.
+   */
+  assetsDir: process.env.ASSETS_DIR ?? path.join(process.cwd(), "assets"),
+
+  /**
+   * Texture edge length in the optimized build.
+   *
+   * Tripo ships 2048px colour, normal and ORM maps. At the size an avatar is
+   * actually drawn, 1024 is indistinguishable and cuts texture weight to a
+   * quarter — and textures, not geometry, are what makes these files heavy.
+   */
+  textureSize: Number(process.env.GLB_TEXTURE_SIZE ?? 1024),
+
+  /** Hard ceiling for the merged GLB. Over this, the build fails rather than ships. */
+  maxOutputBytes: Number(process.env.GLB_MAX_BYTES ?? 5 * 1024 * 1024),
+
   /** Max stylize -> prerigcheck retries before we give up on rigging. */
   maxStylizeRetries: Number(process.env.MAX_STYLIZE_RETRIES ?? 2),
 } as const;

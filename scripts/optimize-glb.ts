@@ -1,4 +1,13 @@
 /**
+ * DEPRECATED — use `npm run build:character` instead.
+ *
+ * This script rewrites each GLB in place, which destroys the original: run it
+ * twice and the mesh is decimated twice, and there is no way back. The character
+ * pipeline (scripts/build-character.ts) supersedes it — it merges the exports
+ * into one file, reads only from assets/raw/ and never writes back to it. It is
+ * kept only for job folders that predate the raw archive; it refuses to run
+ * against assets/raw/ (see the guard in main()).
+ *
  * Shrinks GLBs that are already on disk.
  *
  * Jobs generated before TRIPO_FACE_LIMIT was set came back at ~1.4M triangles and
@@ -71,6 +80,17 @@ async function optimize(file: string, io: NodeIO) {
 }
 
 async function main() {
+  // This script destroys its inputs, so it must never be pointed at the archive.
+  const storage = path.resolve(config.storageDir);
+  const raw = path.resolve(config.assetsDir, "raw");
+  if (storage === raw || storage.startsWith(raw + path.sep)) {
+    console.error(
+      `✗ Refusing to run: STORAGE_DIR (${storage}) is inside the raw archive, which is immutable.\n` +
+        `  Use \`npm run build:character\` instead.`
+    );
+    process.exit(1);
+  }
+
   await MeshoptSimplifier.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 

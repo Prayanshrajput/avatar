@@ -12,7 +12,11 @@
     "seed:demo": "tsx scripts/seed-demo.ts",
     "spike:image": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/spike-image.ts",
     "optimize:glb": "tsx scripts/optimize-glb.ts",
-    "phone": "next build && next start -H 0.0.0.0"
+    "build:character": "tsx scripts/build-character.ts",
+    "verify:character": "tsx scripts/verify-character.ts",
+    "phone": "next build && next start -H 0.0.0.0",
+    "tunnel": "./scripts/tunnel.sh",
+    "tunnel:dev": "./scripts/tunnel.sh --dev"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.9",
@@ -21,6 +25,7 @@
     "@langchain/langgraph": "^1.4.13",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
+    "@supabase/supabase-js": "^2.115.0",
     "meshoptimizer": "^1.2.0",
     "next": "16.3.4",
     "react": "19.2.8",
