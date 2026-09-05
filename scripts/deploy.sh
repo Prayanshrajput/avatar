@@ -137,6 +137,26 @@ case "$CODE" in
   missing_source_file)   echo "-> The multipart upload carried no source file (packaging bug)." >&2 ;;
   unsupported_storage_pattern) echo "-> App calls window.storage, unavailable on Embarko. Use better-sqlite3 or PGlite under \$DATA_DIR. See https://embarko.ai/doc#storage-requirements" >&2 ;;
   deploy_failed)    echo "-> Build/deploy step failed server-side; read 'details' above." >&2 ;;
-  "") [[ "$HTTP_CODE" == 404 ]] && echo "-> 404 with no error code: the deploy API is not responding at $ENDPOINT (docs specify 401 for an unauthenticated POST). Endpoint may be down or moved -- check the dashboard." >&2 ;;
+  "") case "$HTTP_CODE" in
+        404) echo "-> 404 with no error code: the deploy API is not responding at $ENDPOINT (docs specify 401 for an unauthenticated POST). Endpoint may be down or moved -- check the dashboard." >&2 ;;
+        524|504) cat >&2 <<'MSG'
+-> Cloudflare edge timeout, NOT a rejection. The upload succeeded; the
+   server-side build then ran past the edge's ~100s limit, so the proxy hung
+   up before the origin returned a result.
+
+   This is not something the client can fix -- there is no async/status API
+   documented, and the endpoint itself validates in well under a second, so
+   the time is going into `next build` on their side.
+
+   Do NOT assume it failed and retry blindly. Check whether the build landed
+   anyway before re-POSTing:
+     curl -sSkL -o /dev/null -w '%{http_code}\n' https://APP.app.hostnsoft.com
+     curl -sSkL -o /dev/null -w '%{http_code}\n' https://APP.app.embarko.ai
+   A Traefik default cert plus 404 on both means nothing was routed and a
+   retry is safe. Anything else means a build did land -- verify before
+   deploying again.
+MSG
+        ;;
+      esac ;;
 esac
 exit 1

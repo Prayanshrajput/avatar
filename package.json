@@ -5,13 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "spike:tripo": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/spike-tripo.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "spike:image": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/spike-image.ts",
-    "optimize:glb": "tsx scripts/optimize-glb.ts"
+    "optimize:glb": "tsx scripts/optimize-glb.ts",
+    "phone": "next build && next start -H 0.0.0.0"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.5.9",
