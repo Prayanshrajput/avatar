@@ -1,0 +1,27 @@
+# Render Blueprint. Import the repo at https://dashboard.render.com/blueprints and
+# Render reads this instead of asking for build/start settings.
+#
+# The same Dockerfile the app ships for any container host: Render injects its own
+# PORT at runtime, which overrides the image's default, and server.js reads it.
+#
+# Secrets are `sync: false` -- Render prompts for each in the dashboard rather than
+# reading a value from this file, so no key is ever committed.
+
+services:
+  - type: web
+    name: avatar
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: TRIPO_API_KEY
+        sync: false
