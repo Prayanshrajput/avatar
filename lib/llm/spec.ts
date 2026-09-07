@@ -55,8 +55,12 @@ export async function buildAvatarSpec(
     content.push({ type: "image", mimeType, data: bytes.toString("base64") });
     parts.push(IMAGE_INPUT_INSTRUCTION);
     if (input.prompt) parts.push(`Additional direction from the user: ${input.prompt}`);
-  } else {
+  } else if (input.kind === "prompt") {
     parts.push(PROMPT_INPUT_INSTRUCTION, `User description: ${input.prompt}`);
+  } else {
+    // An uploaded GLB is stored as a finished job and never enters the graph, so
+    // reaching here means a job was routed wrong rather than described badly.
+    throw new Error("An uploaded GLB has nothing to specify — it never runs the pipeline.");
   }
 
   if (opts.previous) {

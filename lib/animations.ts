@@ -76,6 +76,30 @@ export function labelForPreset(preset: string): string {
   return leaf.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+/**
+ * Motions that look wrong on repeat. Clip names in an uploaded GLB are whatever
+ * the author typed, so this is a guess — a clip we do not recognise loops, which
+ * is the safe default for the cycles (idle, walk, run) most rigs ship with.
+ */
+const ONE_SHOT = /jump|wave|clap|cheer|agree|sit|die|death|hit|attack|kick|punch|throw|pick|land/i;
+
+/** Friendly label for a clip inside a GLB, e.g. "mixamo.com|Armature|Walk" -> "Walk". */
+export function labelForClip(clip: string): string {
+  const leaf = clip.split(/[|:/]/).pop()?.trim() || clip;
+  return leaf
+    .replace(/[_-]+/g, " ")
+    // "ArmatureWalkCycle" -> "Armature Walk Cycle"
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Best guess at whether an uploaded GLB's clip should loop. */
+export function loopForClip(clip: string): boolean {
+  return !ONE_SHOT.test(clip);
+}
+
 /** Non-biped rigs only have a walk cycle, under their own namespace. */
 export function fallbackPresetFor(creatureType: string): string {
   const motion = creatureType === "serpentine" || creatureType === "aquatic" ? "march" : "walk";

@@ -75,12 +75,20 @@ export type JobStatus = "queued" | "running" | "awaiting_approval" | "done" | "e
 
 export type JobInput =
   | { kind: "prompt"; prompt: string }
-  | { kind: "image"; imagePath: string; prompt?: string };
+  | { kind: "image"; imagePath: string; prompt?: string }
+  /** An already-rigged GLB the user uploaded. Skips the pipeline entirely. */
+  | { kind: "glb"; glbPath: string; filename: string };
 
 export interface AnimationAsset {
   name: string;
   /** Path under /api/assets */
   url: string;
+  /**
+   * Clip to play inside that GLB. Retargeted exports carry one clip each and
+   * leave this unset; an uploaded GLB usually packs every motion into one file,
+   * so its takes all share a url and differ only by clip.
+   */
+  clip?: string;
 }
 
 export interface JobRecord {

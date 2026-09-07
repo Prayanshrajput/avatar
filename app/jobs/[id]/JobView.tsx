@@ -5,11 +5,13 @@ import { useMemo, useState } from "react";
 import { AddAnimations } from "@/components/AddAnimations";
 import { AvatarViewer, type Take } from "@/components/AvatarViewer";
 import { JobStepper } from "@/components/JobStepper";
-import { findByPreset, labelForPreset } from "@/lib/animations";
+import { findByPreset, labelForClip, labelForPreset, loopForClip } from "@/lib/animations";
 import { useJobStream } from "@/lib/useJobStream";
 import type { JobRecord } from "@/lib/types";
 
 function takesFor(job: JobRecord): Take[] {
+  if (job.input.kind === "glb") return uploadedTakes(job);
+
   const takes: Take[] = job.animations.map((a) => {
     const known = findByPreset(a.name);
     return {
@@ -33,6 +35,41 @@ function takesFor(job: JobRecord): Take[] {
 
   // Rigging failed but the mesh is still worth showing.
   if (!takes.length && job.meshUrl) takes.push({ label: "Mesh", url: job.meshUrl, loop: true });
+  return takes;
+}
+
+/**
+ * Takes for an uploaded GLB.
+ *
+ * Every take points at the same file and differs only by clip, because an
+ * exported model packs its motions into one container rather than one file per
+ * motion the way Tripo's retargets arrive.
+ */
+function uploadedTakes(job: JobRecord): Take[] {
+  const url = job.riggedUrl;
+  if (!url) return [];
+
+  // Two clips can share a label once their namespace is stripped
+  // ("preset:walk" and "preset:quadruped:walk"), and two identical buttons are
+  // indistinguishable. Number the repeats rather than hide one.
+  const seen = new Map<string, number>();
+
+  const takes: Take[] = job.animations.map((a) => {
+    const clip = a.clip ?? a.name;
+    const label = labelForClip(clip);
+    const count = (seen.get(label) ?? 0) + 1;
+    seen.set(label, count);
+
+    return {
+      label: count > 1 ? `${label} ${count}` : label,
+      url,
+      clip,
+      loop: loopForClip(clip),
+    };
+  });
+
+  takes.push({ label: takes.length ? "Rest pose" : "Model", url, clip: null, loop: true });
+  takes.push({ label: "Disappear", url, clip: null, loop: true, effect: "disappear" });
   return takes;
 }
 
@@ -69,12 +106,26 @@ export function JobView({ initialJob }: { initialJob: JobRecord }) {
           ← New avatar
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {job.spec?.name ?? (job.status === "done" ? "Avatar" : "Generating…")}
+          {job.spec?.name ??
+            (job.input.kind === "glb"
+              ? job.input.filename.replace(/\.glb$/i, "")
+              : job.status === "done"
+                ? "Avatar"
+                : "Generating…")}
         </h1>
-        {job.spec && (
+        {job.spec ? (
           <p className="text-sm text-zinc-500">
             {job.spec.bodyType} · {job.spec.characterType} rig
           </p>
+        ) : (
+          job.input.kind === "glb" && (
+            <p className="text-sm text-zinc-500">
+              Uploaded ·{" "}
+              {job.animations.length
+                ? `${job.animations.length} animation${job.animations.length > 1 ? "s" : ""}`
+                : "no animations in this file"}
+            </p>
+          )
         )}
       </header>
 
@@ -83,12 +134,18 @@ export function JobView({ initialJob }: { initialJob: JobRecord }) {
           <AvatarViewer takes={takes}>
             <AddAnimations job={job} />
           </AvatarViewer>
-          {job.riggingFailed && (
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-              Auto-rigging did not succeed for this mesh, so there are no animations. The mesh
-              itself is above and downloadable.
-            </p>
-          )}
+          {job.riggingFailed &&
+            (job.input.kind === "glb" ? (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                This GLB has no skinned mesh, so any animation in it cannot move a body. It is
+                shown as-is.
+              </p>
+            ) : (
+              <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                Auto-rigging did not succeed for this mesh, so there are no animations. The mesh
+                itself is above and downloadable.
+              </p>
+            ))}
         </>
       ) : (
         <JobStepper job={job} note={note} />
