@@ -26,6 +26,12 @@ export interface Take {
   loop?: boolean;
   /** Viewer-side effect with no Tripo motion behind it. */
   effect?: "disappear";
+  /**
+   * Which clip inside the GLB to play. Retargeted exports carry exactly one, so
+   * they leave this unset and get it by position. An uploaded GLB can hold many,
+   * and `null` means "play none of them" — the rest pose.
+   */
+  clip?: string | null;
 }
 
 /**
@@ -85,11 +91,13 @@ function Take({
   url,
   loop = true,
   effect,
+  clip,
   replayKey,
 }: {
   url: string;
   loop?: boolean;
   effect?: "disappear";
+  clip?: string | null;
   replayKey: number;
 }) {
   // Meshes are requested from Tripo with meshopt compression, so the loader needs
@@ -100,10 +108,21 @@ function Take({
 
   // Skinned meshes must be cloned with SkeletonUtils; a plain clone shares bones.
   const model = useMemo(() => SkeletonUtils.clone(scene) as Group, [scene]);
-  const { actions, names } = useAnimations(animations, model);
+  const { actions, names, mixer } = useAnimations(animations, model);
 
   useEffect(() => {
-    const action = names.length ? actions[names[0]] : undefined;
+    // `clip === null` is an explicit "no motion" take; undefined just means the
+    // GLB carries a single clip and we play whichever one that is. A named clip
+    // that has gone missing falls back to the first rather than freezing.
+    if (clip === null) {
+      // Stopping the mixer leaves the bones wherever the last frame put them, so
+      // the skeleton has to be sent back to its bind pose by hand.
+      mixer.stopAllAction();
+      model.traverse((child) => (child as SkinnedMesh).skeleton?.pose());
+      return;
+    }
+    const name = clip && names.includes(clip) ? clip : names[0];
+    const action = name ? actions[name] : undefined;
     if (!action) return;
 
     // A jump or a wave looks broken on repeat — hold the final pose instead.
@@ -114,7 +133,7 @@ function Take({
     return () => {
       action.fadeOut(0.2);
     };
-  }, [actions, names, loop, replayKey]);
+  }, [actions, names, loop, clip, mixer, model, replayKey]);
 
   // "Disappear" has no Tripo preset, so the viewer performs it: fade the materials
   // out while shrinking, then hold the avatar hidden.
@@ -296,6 +315,7 @@ export function AvatarViewer({
               url={active.url}
               loop={active.loop ?? true}
               effect={active.effect}
+              clip={active.clip}
               replayKey={replayKey}
             />
           </Suspense>
